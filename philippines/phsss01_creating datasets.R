@@ -2,7 +2,9 @@ source(paste0(path_gains_repo,"/philippines/phwgaux01_wellbeing total.R"))
 
 philippines_dfa <- readRDS(paste0(path_cohorts_data_for_analysis,"/cohorts_data_for_analysis.RDS")) %>%
   dplyr::filter(site == "cebu") %>% 
-  dplyr::mutate(uncchdid = pin - 40000000) 
+  dplyr::mutate(uncchdid = pin - 40000000)
+
+clhns_part1 <- read_dta(paste0(path_cebu_redcap_data,"/CLHNS part1 Aug 2019.dta"))
 
 ses_cs <- readRDS(paste0(path_harmonization_folder,"/philippines/working/pca_region.RDS")) %>% 
   dplyr::select(uncchdid,year,pc) %>% 
@@ -18,6 +20,9 @@ sss_df <- readRDS(paste0(path_dissertation,"/aim 2/working/cohorts/philippines/a
   left_join(philippines_dfa %>% 
               dplyr::select(uncchdid,adladdercommunity,adladdereconomic),
             by = "uncchdid") %>% 
+  left_join(clhns_part1 %>% 
+              dplyr::select(uncchdid,currbrgy),
+            by="uncchdid") %>% 
   # Bringing in wellbeing and life satisfaction separately
   left_join(ph_wellbeing %>% 
               dplyr::select(uncchdid,d_happiness_tot_imp) %>% 
@@ -48,7 +53,7 @@ saveRDS(sss_df, paste0(path_dissertation,"/aim 3/working/cohorts/philippines/sss
 path_df <- sss_df %>% 
   mutate_at(vars(male,contains("rural"),formal),~as.numeric(as.character(.))) %>% 
   dplyr::select(uncchdid,pc1983,pc1991,pc1994,pc1998,pc2002,pc2005,pc2009,pc2018,
-                rural2018,
+                rural2018,currbrgy,
                 moscho,moage,chbirtho,formal,male,bmi,srq,happiness,
                 # moht,
                 eduyr,
@@ -70,9 +75,9 @@ method = mi_null$method
 pred = mi_null$predictorMatrix
 
 # Each column is imputed by the rows
-pred[,c("pregnant","uncchdid")] <- 0
-pred[c("pregnant","uncchdid"),] <- 0
-method[c("pregnant","uncchdid")] <- ""
+pred[,c("pregnant","uncchdid","currbrgy")] <- 0
+pred[c("pregnant","uncchdid","currbrgy"),] <- 0
+method[c("pregnant","uncchdid","currbrgy")] <- ""
 method[c("eduyrC")] <- '~I(scale(eduyr,scale=F))'
 
 

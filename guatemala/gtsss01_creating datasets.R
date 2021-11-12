@@ -1,12 +1,19 @@
 
 source(paste0(path_mobility_repo,"/guatemala/gtaux01_covariates.R"))
 source(paste0(path_harmonization_repo,"/package/mode_impute.R"))
+source(paste0(path_gains_repo,"/guatemala/gtwgaux06_wellbeing total.R"))
+
+
 
 ses_cs <- readRDS(paste0(path_harmonization_folder,"/guatemala/working/ses_cs for COHORTS.RDS"))
 
 # ANALYTIC SAMPLE ----------
 sss_df <- readRDS(paste0(path_dissertation,"/aim 2/working/cohorts/guatemala/absolute_df.RDS")) %>% 
-  dplyr::select(-starts_with("pcall"),-ravens,-rural,-nchildren,-gtvillage) %>% 
+  dplyr::select(-starts_with("pcall"),-ravens,-happiness,-rural,-nchildren,-gtvillage) %>% 
+  left_join(gt_wellbeing %>% 
+              dplyr::select(iduni,d_happiness_tot_imp) %>% 
+              rename(happiness = d_happiness_tot_imp),
+            by=c("id_uni"="iduni")) %>% 
   left_join(ses_cs %>% 
               mutate(pcall1618_1 = case_when(!is.na(pcall2016_1) & !is.na(pcall2018_1) ~ rowMeans(.[,c("pcall2016_1","pcall2018_1")],na.rm=TRUE),
                                              !is.na(pcall2016_1) ~ pcall2016_1,

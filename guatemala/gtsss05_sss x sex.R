@@ -2,6 +2,7 @@ source(paste0(path_incap_repo,"/rally/clean_glm_result.R"))
 source(paste0(path_replication_repo,"/package/clean_pathanalysis.R"))
 source(paste0(path_replication_repo,"/package/clean_mi_conditionalregression.R"))
 source(paste0(path_sss_repo,"/package/coefs_heterogeneity.R"))
+source(paste0(path_sss_repo,"/package/mi_reg_coef.R"))
 
 sss_df <- readRDS(paste0(path_dissertation,"/aim 3/working/cohorts/guatemala/sss_df.RDS"))
 sss_mi_dfs <- readRDS(paste0(path_dissertation,"/aim 3/working/cohorts/guatemala/sss_mi_dfs.RDS"))

@@ -1,22 +1,38 @@
 # Using mice package ----------
 
+
+
 mice_coefs_heterogeneity <- function(summary_mice,
-                                     model = ""){
+                                     model = "",type="lm_robust"){
+  if(type == "lm"){
+    summary_mice %>% 
+      mutate(lci = estimate - 1.96*std.error,
+             uci = estimate + 1.96*std.error,
+             model = model) %>% 
+      mutate(Coefficient = paste0(
+        estimate %>% round(.,2)," (",
+        lci %>% round(.,2),", ",
+        uci %>% round(.,2),")"
+      )) %>% 
+      return(.) 
+  }
   
-  summary_mice %>% 
-    mutate(lci = estimate - 1.96*std.error,
-           uci = estimate + 1.96*std.error,
-           model = model) %>% 
-    mutate(Coefficient = paste0(
-      estimate %>% round(.,2)," (",
-      lci %>% round(.,2),", ",
-      uci %>% round(.,2),")"
-    )) %>% 
-    return(.)
+  if(type == "lm_robust"){
+    summary_mice %>% 
+      mutate(Coefficient = paste0(
+        estimate %>% round(.,2)," (",
+        lci %>% round(.,2),", ",
+        uci %>% round(.,2),")"
+      )) %>% 
+      return(.)
+    
+  }
+  
   
 }
 
-mice_heterogeneity <- function(o,miaux_dfs,het_var="",site="guatemala"){
+mice_heterogeneity <- function(o,miaux_dfs,het_var="",site="guatemala",
+                               type = "robust mi"){
   
   adult_life_x <- c("lifesat + children")  # + married
   
@@ -54,21 +70,43 @@ mice_heterogeneity <- function(o,miaux_dfs,het_var="",site="guatemala"){
   formula5c_y <- paste0(o,"~ adladdercommunity + adladdercommunity:",het_var," +",sep_x," +",early_life_x," +",adult_life_x) %>% as.formula()
   formula5e_y <- paste0(o,"~ adladdereconomic + adladdereconomic:",het_var," +",sep_x," +",early_life_x," +",adult_life_x) %>% as.formula()
   
+  if(type == "mi"){
+    models_list_3c <- lm.mids(formula3c_y,data=miaux_dfs) 
+    models_list_3e <- lm.mids(formula3e_y,data=miaux_dfs)
+    models_list_5c <- lm.mids(formula5c_y,data=miaux_dfs) 
+    models_list_5e <- lm.mids(formula5e_y,data=miaux_dfs)
+    
+    summary_table <- bind_rows(models_list_3c %>% pool(.) %>% summary(.)%>% 
+                                 mice_coefs_heterogeneity(.,model="Community Respect, No Heterogeneity"),
+                               models_list_5c %>% pool(.) %>% summary(.)%>% 
+                                 mice_coefs_heterogeneity(.,model=paste0("Community Respect, Heterogeneity: ",het_var)),
+                               models_list_3e %>% pool(.) %>% summary(.)%>% 
+                                 mice_coefs_heterogeneity(.,model="Economic Respect, No Heterogeneity"),
+                               models_list_5e %>% pool(.) %>% summary(.)%>% 
+                                 mice_coefs_heterogeneity(.,model=paste0("Community Respect, Heterogeneity: ",het_var))
+    )
+    
+  }
   
-  models_list_3c <- lm.mids(formula3c_y,data=miaux_dfs) 
-  models_list_3e <- lm.mids(formula3e_y,data=miaux_dfs)
-  models_list_5c <- lm.mids(formula5c_y,data=miaux_dfs) 
-  models_list_5e <- lm.mids(formula5e_y,data=miaux_dfs)
+  if(type == "robust mi"){
+    models_list_3c <- lm_robust(formula3c_y,data=miaux_dfs) 
+    models_list_3e <- lm_robust(formula3e_y,data=miaux_dfs)
+    models_list_5c <- lm_robust(formula5c_y,data=miaux_dfs) 
+    models_list_5e <- lm_robust(formula5e_y,data=miaux_dfs)
+    
+    summary_table <- bind_rows(models_list_3c  %>% pool_robust(.) %>% summary_robust(.) %>% 
+                                 mice_coefs_heterogeneity(.,model="Community Respect, No Heterogeneity"),
+                               models_list_5c  %>% pool_robust(.)%>% summary_robust(.)%>% 
+                                 mice_coefs_heterogeneity(.,model=paste0("Community Respect, Heterogeneity: ",het_var)),
+                               models_list_3e  %>% pool_robust(.)%>% summary_robust(.)%>% 
+                                 mice_coefs_heterogeneity(.,model="Economic Respect, No Heterogeneity"),
+                               models_list_5e  %>% pool_robust(.) %>% summary_robust(.)%>% 
+                                 mice_coefs_heterogeneity(.,model=paste0("Community Respect, Heterogeneity: ",het_var))
+    )
+    
+    
+  }
   
-  summary_table <- bind_rows(models_list_3c %>% pool(.) %>% summary(.)%>% 
-                                mice_coefs_heterogeneity(.,model="Community Respect, No Heterogeneity"),
-                              models_list_5c %>% pool(.) %>% summary(.)%>% 
-                                mice_coefs_heterogeneity(.,model=paste0("Community Respect, Heterogeneity: ",het_var)),
-                              models_list_3e %>% pool(.) %>% summary(.)%>% 
-                                mice_coefs_heterogeneity(.,model="Economic Respect, No Heterogeneity"),
-                              models_list_5e %>% pool(.) %>% summary(.)%>% 
-                                mice_coefs_heterogeneity(.,model=paste0("Community Respect, Heterogeneity: ",het_var))
-                              )
   
   anova_c <- D3(models_list_5c,models_list_3c)$result
   anova_e <- D3(models_list_5e,models_list_3e)$result
@@ -141,38 +179,20 @@ consolidated_heterogeneity <- function(o,miaux_dfs,het_var="",site="guatemala"){
         mutate(bmi = case_when(pregnant == 1 ~ NA_real_,
                                TRUE ~ bmi))
     }
-    glm_3c <- lm(formula3c_y,data = df)
-    glm_5c <- lm(formula5c_y,data = df)
-    glm_3e <- lm(formula3e_y,data = df)
-    glm_5e <- lm(formula5e_y,data = df)
     
-    # glm_3c <- geepack::geeglm(formula3c_y,
-    #                           id = d_id_unim,
-    #                           corstr = "unstructured",
-    #                           data = df)
+    # Robustness is introduced at coef_heterogeneity() and contrasts_summary()
 
-    
-    # glm_5c <- geepack::geeglm(formula5c_y,
-    #                           id = d_id_unim,
-    #                           corstr = "unstructured",
-    #                           data = df)
-    
-    
-    # glm_3e <- geepack::geeglm(formula3e_y,
-    #                           id = d_id_unim,
-    #                           corstr = "unstructured",
-    #                           data = df)
-    # 
-    # glm_5e <- geepack::geeglm(formula5e_y,
-    #                           id = d_id_unim,
-    #                           corstr = "unstructured",
-    #                           data = df)
+      glm_3c <- lm(formula3c_y,data = df)
+      glm_5c <- lm(formula5c_y,data = df)
+      glm_3e <- lm(formula3e_y,data = df)
+      glm_5e <- lm(formula5e_y,data = df)
+      
     models_list_3c[[i]] <- glm_3c
     models_list_5c[[i]] <- glm_5c
     models_list_3e[[i]] <- glm_3e
     models_list_5e[[i]] <- glm_5e
-  }
   
+  }
   all_models <- list(models_list_3c = models_list_3c,
                      models_list_5c = models_list_5c,
                      models_list_3e = models_list_3e,
@@ -203,27 +223,27 @@ consolidated_heterogeneity <- function(o,miaux_dfs,het_var="",site="guatemala"){
 }
 
 
-coefs_heterogeneity <- function(model_list,het_var){
+coefs_heterogeneity <- function(het_model_list,het_var){
   
-  models_list_3c = model_list[["models_list_3c"]]
-  models_list_5c = model_list[["models_list_5c"]]
-  models_list_3e = model_list[["models_list_3e"]]
-  models_list_5e = model_list[["models_list_5e"]]
+  models_list_3c = het_model_list[["models_list_3c"]]
+  models_list_5c = het_model_list[["models_list_5c"]]
+  models_list_3e = het_model_list[["models_list_3e"]]
+  models_list_5e = het_model_list[["models_list_5e"]]
   
   
-  coefs_table <- bind_rows(clean_mi_conditionalregression(models_list_3c,link = "lmer identity") %>% 
+  coefs_table <- bind_rows(clean_mi_conditionalregression(models_list_3c,link = "lm_robust") %>% 
                              # dplyr::select(iv, Coefficient) %>% 
                              mutate(model = "Community Respect, No Heterogeneity"),
                            
-                           clean_mi_conditionalregression(models_list_5c,link = "lmer identity") %>% 
+                           clean_mi_conditionalregression(models_list_5c,link = "lm_robust") %>% 
                              # dplyr::select(iv, Coefficient)  %>% 
                              mutate(model = paste0("Community Respect, Heterogeneity: ",het_var)),
                            
-                           clean_mi_conditionalregression(models_list_3e,link = "lmer identity") %>% 
+                           clean_mi_conditionalregression(models_list_3e,link = "lm_robust") %>% 
                              # dplyr::select(iv, Coefficient) %>% 
                              mutate(model = "Economic Status, No Heterogeneity"),
                            
-                           clean_mi_conditionalregression(models_list_5e,link = "lmer identity") %>% 
+                           clean_mi_conditionalregression(models_list_5e,link = "lm_robust") %>% 
                              # dplyr::select(iv, Coefficient)  %>% 
                              mutate(model = paste0("Economic Status, Heterogeneity: ",het_var)),
                            

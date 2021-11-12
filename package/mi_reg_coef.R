@@ -44,7 +44,10 @@ mi_reg_coef <- function(formula_reg,mi_dfs,
     
     # IPAW = FALSE ------
     if(ipaw == FALSE){
-      glm_c <- lm(formula_reg, data = df)
+      # glm_c <- lm(formula_reg, data = df)
+      
+      glm_c <- MASS::rlm(formula_reg, data = df)
+      
     }
     
     # IPAW = TRUE -------
@@ -205,31 +208,50 @@ temp_mr <- function(o,dfs,type="mi",
 }
 
 
+source(paste0(path_sss_repo,"/package/robust functions.R"))
+
 # Using mice package ---------
 
-mice_reg_coef <- function(summary_pooled,coef_name = "adladdercommunity"){
-  
-  summary_pooled %>% 
-    dplyr::filter(term == coef_name) %>% 
-    mutate(lci = estimate - 1.96*std.error,
-           uci = estimate + 1.96*std.error) %>% 
-    mutate(Coefficient = paste0(
-      estimate %>% round(.,2)," (",
-      lci %>% round(.,2),", ",
-      uci %>% round(.,2),")"
-    )) %>% 
-    dplyr::select(Coefficient) %>% 
-    pull(.) %>% 
-    return(.)
+mice_reg_coef <- function(summary_pooled,
+                          coef_name = "adladdercommunity",type="lm"){
+  if(type == "lm"){
+    summary_pooled %>% 
+      dplyr::filter(term == coef_name) %>% 
+      mutate(lci = estimate - 1.96*std.error,
+             uci = estimate + 1.96*std.error) %>% 
+      mutate(Coefficient = paste0(
+        estimate %>% round(.,2)," (",
+        lci %>% round(.,2),", ",
+        uci %>% round(.,2),")"
+      )) %>% 
+      dplyr::select(Coefficient) %>% 
+      pull(.) %>% 
+      return(.)
+  }
+
+  if(type == "lm_robust"){
+    summary_pooled %>% 
+      dplyr::filter(term==coef_name) %>% 
+      mutate(Coefficient = paste0(
+        estimate %>% round(.,2)," (",
+        lci %>% round(.,2),", ",
+        uci %>% round(.,2),")"
+      )) %>% 
+      dplyr::select(Coefficient) %>% 
+      pull(.) %>% 
+      return(.)
+  }
   
 }
 
-mice_pool_reg <- function(o,df,type="mi",coef_type = "Coefficient",
+# o = y
+
+
+mice_pool_reg <- function(o,df,type="robust mi",coef_type = "Coefficient",
                           site = "guatemala",
                           scaled = FALSE,
                           all_wealth = FALSE,
                           output_type = "mr_df"){
-  
   adult_life_x <- c("lifesat + children + married")  # Only in the COHORTS paper
   
   rural = ""
@@ -272,6 +294,7 @@ mice_pool_reg <- function(o,df,type="mi",coef_type = "Coefficient",
     economic_var = "scale(adladdereconomic)"
     
   }
+  
   
   formula1c_y <- paste0(o,"~ ",community_var) %>% as.formula()
   formula2c_y <- paste0(o,"~ ",community_var," +",sep_x)%>% as.formula()
@@ -325,23 +348,65 @@ mice_pool_reg <- function(o,df,type="mi",coef_type = "Coefficient",
                         model4Ce = model4Ce_out %>% mice_reg_coef(.,coef_name=economic_var)
     )
     
-    all_model_coefs = bind_rows(
-                                          model1c = model1c_out %>% mutate(model = "model1c"),
-                                          model2c = model2c_out %>% mutate(model = "model2c"),
-                                          model3c = model3c_out  %>% mutate(model = "model3c"),
-                                          model4Ac = model4Ac_out %>% mutate(model = "model4Ac"),
-                                          model4Bc = model4Bc_out %>% mutate(model = "model4Bc"),
-                                          model4Cc = model4Cc_out %>% mutate(model = "model4Cc"),
-                                          model1e = model1e_out  %>% mutate(model = "model1e"),
-                                          model2e = model2e_out %>% mutate(model = "model2e"),
-                                          model3e = model3e_out  %>% mutate(model = "model3e"),
-                                          model4Ae = model4Ae_out %>% mutate(model = "model4Ae"),
-                                          model4Be = model4Be_out  %>% mutate(model = "model4Be"),
-                                          model4Ce = model4Ce_out %>% mutate(model = "model4Ce")
-    )
     
 
   }
+  
+  
+  
+  if(type == "robust mi"){
+    
+    model1c_out = lm_robust(formula1c_y,site,data=df) %>% pool_robust(.)  %>% summary_robust(.)
+    model2c_out = lm_robust(formula2c_y,site,data=df) %>% pool_robust(.)  %>% summary_robust(.)
+    model3c_out = lm_robust(formula3c_y,site,data=df)  %>% pool_robust(.) %>% summary_robust(.)
+    model4Ac_out = lm_robust(formula4Ac_y,site,data=df) %>% pool_robust(.)  %>% summary_robust(.)
+    model4Bc_out = lm_robust(formula4Bc_y,site,data=df) %>% pool_robust(.)  %>% summary_robust(.)
+    model4Cc_out = lm_robust(formula4Cc_y,site,data=df)  %>% pool_robust(.) %>% summary_robust(.)
+    
+    model1e_out = lm_robust(formula1e_y,site,data=df)  %>% pool_robust(.) %>% summary_robust(.)
+    model2e_out = lm_robust(formula2e_y,site,data=df) %>% pool_robust(.)  %>% summary_robust(.)
+    model3e_out = lm_robust(formula3e_y,site,data=df)  %>% pool_robust(.) %>% summary_robust(.)
+    model4Ae_out = lm_robust(formula4Ae_y,site,data=df)  %>% pool_robust(.) %>% summary_robust(.)
+    model4Be_out = lm_robust(formula4Be_y,site,data=df) %>% pool_robust(.)  %>% summary_robust(.)
+    model4Ce_out = lm_robust(formula4Ce_y,site,data=df)  %>% pool_robust(.) %>% summary_robust(.)
+    
+    mr_df <- data.frame(variable = variable,
+                        model1c = model1c_out %>% mice_reg_coef(.,coef_name=community_var,type="lm_robust"),
+                        model2c = model2c_out %>% mice_reg_coef(.,coef_name=community_var,type="lm_robust"),
+                        model3c = model3c_out %>% mice_reg_coef(.,coef_name=community_var,type="lm_robust"),
+                        model4Ac = model4Ac_out %>% mice_reg_coef(.,coef_name=community_var,type="lm_robust"),
+                        model4Bc = model4Bc_out %>% mice_reg_coef(.,coef_name=community_var,type="lm_robust"),
+                        model4Cc = model4Cc_out %>% mice_reg_coef(.,coef_name=community_var,type="lm_robust"),
+                        model1e = model1e_out %>% mice_reg_coef(.,coef_name=economic_var,type="lm_robust"),
+                        model2e = model2e_out %>% mice_reg_coef(.,coef_name=economic_var,type="lm_robust"),
+                        model3e = model3e_out %>% mice_reg_coef(.,coef_name=economic_var,type="lm_robust"),
+                        model4Ae = model4Ae_out %>% mice_reg_coef(.,coef_name=economic_var,type="lm_robust"),
+                        model4Be = model4Be_out %>% mice_reg_coef(.,coef_name=economic_var,type="lm_robust"),
+                        model4Ce = model4Ce_out %>% mice_reg_coef(.,coef_name=economic_var,type="lm_robust")
+    )
+
+    
+
+    
+  }
+  
+  all_model_coefs = bind_rows(
+    model1c = model1c_out %>% mutate(model = "model1c"),
+    model2c = model2c_out %>% mutate(model = "model2c"),
+    model3c = model3c_out  %>% mutate(model = "model3c"),
+    model4Ac = model4Ac_out %>% mutate(model = "model4Ac"),
+    model4Bc = model4Bc_out %>% mutate(model = "model4Bc"),
+    model4Cc = model4Cc_out %>% mutate(model = "model4Cc"),
+    model1e = model1e_out  %>% mutate(model = "model1e"),
+    model2e = model2e_out %>% mutate(model = "model2e"),
+    model3e = model3e_out  %>% mutate(model = "model3e"),
+    model4Ae = model4Ae_out %>% mutate(model = "model4Ae"),
+    model4Be = model4Be_out  %>% mutate(model = "model4Be"),
+    model4Ce = model4Ce_out %>% mutate(model = "model4Ce")
+  )
+  
+  
+  
   
   if(output_type == "mr_df"){
     return(mr_df)

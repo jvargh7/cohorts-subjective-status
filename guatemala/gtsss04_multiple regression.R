@@ -30,6 +30,7 @@ result_path_all_model <- data.frame()
 
 y_models <- list()
 
+# y = "bmi"
 for (y in c("bmi","srq","happiness")) {
   print(y)
   # temp_path_mr <- temp_mr(y,df = sss_mi_dfs,site = "guatemala")
@@ -59,7 +60,7 @@ result_path_mr <- result_path_mr %>%
                               TRUE ~ variable
   ))
 
-result_path_all_model <- result_path_all_model %>% 
+result_path_all_model <- result_path_all_model   %>% 
   mutate(variable = as.character(variable),
          lci = estimate - 1.96*std.error,
          uci = estimate + 1.96*std.error,
