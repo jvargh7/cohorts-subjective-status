@@ -4,17 +4,16 @@
 
 # data=df
 # formula_reg = formula1c_y
-lm_robust <- function(formula_reg,site=NA,data=mids_df,clustering=FALSE){
+lm_robust <- function(formula_reg,site=NA,data=mids_df,clustering=TRUE){
   
   datlist <- miceadds::mids2datlist(data)
-  
-  if(clustering == FALSE){
+  print(site)
+  if(clustering == FALSE|site == "south africa"){
     reg_out <- map(datlist,function(x) lm(formula_reg,x))
-    
-    
   }
   
-  if(clustering == TRUE){
+  if(clustering == TRUE & site != "south africa"){
+    print("running GEE")
     require(geepack)
     if(site == "guatemala"){
       cluster_id = "d_id_unim"
@@ -63,12 +62,6 @@ pool_robust <- function(reg_out){
   
 }
 
-# Fraction of missing information:
-# https://www.frontiersin.org/articles/10.3389/fpsyg.2021.667802/full
-# The FMI measure quantifies the amount of information missing in the estimation of a 
-# particular parameter (i.e., element of θ) by considering the drop in efficiency 
-# when that parameter is estimated from the observed data Y rather than from the 
-# hypothetical complete data X.
 
 # lm_out = model_out
 summary_robust <- function(lm_out){
@@ -84,4 +77,45 @@ summary_robust <- function(lm_out){
   
   summary_out %>% 
     return(.)
+}
+
+gof_robust <- function(models_large,models_small,models_type){
+  
+  if(models_type=="mi"){
+    LRT = D3(models_large,models_small)$result;
+  }
+  
+  if(models_type == "robust mi"){
+    LRT_models = map2(models_large,models_small,
+               function(x,y){
+                 QIC_large = QIC(x);
+                 QIC_small = QIC(y);
+                 
+                 chisq_diff = 2*(QIC_large[["Quasi Lik"]] - QIC_small[["Quasi Lik"]]);
+                 p_val = 1-pchisq(chisq_diff,1)
+                 # print(paste0("P = ",p_val))
+                 return(c(chisq_diff,p_val))
+                 
+                })
+    LRT = numeric()
+    LRT[1] = map(LRT_models,
+                 function(x) x[[1]][1]) %>% 
+      unlist() %>% 
+      mean(.,na.rm=TRUE)
+    
+    LRT[2] = NA
+    LRT[3] = NA
+    LRT[4] = map(LRT_models,
+                 function(x) x[2]) %>% 
+      unlist() %>% 
+      as.numeric(.) %>% 
+      mean(.,na.rm=TRUE)
+    
+    # print(paste0("LRT = ",LRT[4]))
+    
+  }
+  
+  return(LRT)
+  
+  
 }

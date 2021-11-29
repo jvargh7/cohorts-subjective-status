@@ -21,6 +21,13 @@ mi_reg_coef <- function(formula_reg,mi_dfs,
                      site == "south africa" ~ "bttid",
                      site == "india" ~ "id",
                      TRUE ~ NA_character_)
+  cluster_id_var = case_when(site == "brazil 1993" ~ "nquest",
+                             site == "guatemala" ~ "d_id_unim",
+                             site == "philippines" ~ "currbrgy",
+                             site == "south africa" ~ "bttid",
+                             site == "india" ~ "id",
+                             TRUE ~ NA_character_)
+  
   
   if(!id_var %in% names(mi_dfs$data)){
     print("ID variable missing")
@@ -71,17 +78,19 @@ mi_reg_coef <- function(formula_reg,mi_dfs,
         left_join(df_alive,
                   by = id_var) %>% 
         mutate(response_weight = r_w) %>% 
-        mutate('id' = id_var) %>% 
         mutate(weight = censoring_weight*response_weight*sss_weight)
+      
+      df$id = df[,cluster_id_var]
 
       # print(i)
-      glm_c <- MASS::rlm(formula_reg, data = df,
-                 weights = weight,wt.method="case")
+      # glm_c <- MASS::rlm(formula_reg, data = df,
+      #            weights = weight,wt.method="case")
       
-      # glm_c <- geeglm(formula_reg, data = df,
-      #                 weights = weight,
-      #                 id = id,
-      #                 corstr = "independence")
+      print("running GEE")
+      glm_c <- geeglm(formula_reg, data = df,
+                      weights = weight,
+                      id = id,
+                      corstr = "independence")
     }
     
     models_list[[i]] <- glm_c

@@ -89,10 +89,10 @@ mice_heterogeneity <- function(o,miaux_dfs,het_var="",site="guatemala",
   }
   
   if(type == "robust mi"){
-    models_list_3c <- lm_robust(formula3c_y,data=miaux_dfs) 
-    models_list_3e <- lm_robust(formula3e_y,data=miaux_dfs)
-    models_list_5c <- lm_robust(formula5c_y,data=miaux_dfs) 
-    models_list_5e <- lm_robust(formula5e_y,data=miaux_dfs)
+    models_list_3c <- lm_robust(formula3c_y,site,data=miaux_dfs) 
+    models_list_3e <- lm_robust(formula3e_y,site,data=miaux_dfs)
+    models_list_5c <- lm_robust(formula5c_y,site,data=miaux_dfs) 
+    models_list_5e <- lm_robust(formula5e_y,site,data=miaux_dfs)
     
     summary_table <- bind_rows(models_list_3c  %>% pool_robust(.) %>% summary_robust(.) %>% 
                                  mice_coefs_heterogeneity(.,model="Community Respect, No Heterogeneity"),
@@ -107,9 +107,10 @@ mice_heterogeneity <- function(o,miaux_dfs,het_var="",site="guatemala",
     
   }
   
-  
-  anova_c <- D3(models_list_5c,models_list_3c)$result
-  anova_e <- D3(models_list_5e,models_list_3e)$result
+  print(type)
+
+  anova_c <- gof_robust(models_list_5c,models_list_3c,type)
+  anova_e <- gof_robust(models_list_5e,models_list_3e,type)
   model_comparison <- bind_rows(data.frame(model = "Community Respect",
                                            LRT_statistic = anova_c[1],
                                            LRT_pvalue = anova_c[4]),
